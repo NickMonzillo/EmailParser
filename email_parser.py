@@ -1,44 +1,26 @@
-import email.message, email.parser, email, json
-from HTMLParser import HTMLParser
+import email.message, email.parser, email, json, re, email.utils
 from os import listdir
+from time import strftime
 
 
-class MLStripper(HTMLParser):
-    def __init__(self):
-        # initialize the base class
-        HTMLParser.__init__(self)
-
-    def read(self, data):
-        # clear the current output before re-use
-        self._lines = []
-        # re-set the parser's state before re-use
-        self.reset()
-        self.feed(data)
-        return ''.join(self._lines)
-
-    def handle_data(self, d):
-        self._lines.append(d)
-
-def strip_tags(html):
-    s = MLStripper()
-    return s.read(html)
-
-#TODO: create a function that removes the \n and \x** from strings
-'''
 def remove_junk(string):
-    for char in string:'''
-        
+    '''Removes whitespace characters, escapes, and links from a string.'''
+    string = re.sub(r'\s+', ' ', string)
+    string = re.sub(r"[\x80-\xff]", '', string)
+    #link_regex = "(([\w]+:)?//)?(([\d\w]|%[a-fA-f\d]{2,2})+(:([\d\w]|%[a-fA-f\d]{2,2})+)?@)?([\d\w][-\d\w]{0,253}[\d\w]\.)+[\w]{2,4}(:[\d]+)?(/([-+_~.\d\w]|%[a-fA-f\d]{2,2})*)*(\?(&?([-+_~.\d\w]|%[a-fA-f\d]{2,2})=?)*)?(#([-+_~.\d\w]|%[a-fA-f\d]{2,2})*)?"
+    #string = re.sub(link_regex,'',string)
+    return string
+
 def get_body(email_path):
-    '''Returns the body of an email'''
+    '''Returns the body of an email, removing any whitespace characters and escapes.'''
     fp = open(email_path)   
     msg = email.message_from_file(fp)
     if msg.is_multipart():
-        for payload in msg.get_payload():
-        # if payload.is_multipart()
-            if type(payload.get_payload(decode=True)) == str:
-                return unicode(payload.get_payload(decode=True),errors = 'ignore').lstrip()
+        for part in msg.walk():
+            if part.get_content_type() == 'text/plain':
+                return remove_junk(str(part.get_payload(decode=True)))    
     else:
-        return strip_tags(msg.get_payload(decode=True)).replace('\n','')
+        return remove_junk(str(msg.get_payload(decode=True)))
 
 def construct_dict(email_path):
     '''Constructs a dictionary of email information.
@@ -48,9 +30,15 @@ def construct_dict(email_path):
     msg = email.message_from_file(fp)
     email_dict = {}
     for item in msg.items():
-        if item[0] in include:
-            email_dict[item[0]] = item[1]
-    #email_dict['Body'] = get_body(email_path)
+        if item[0] == 'From':
+            address = email.utils.parseaddr(item[1])
+            email_dict['Name'] = address[0]
+            email_dict['Address'] = address[1]
+        if item[0] == 'Date':
+            email_dict['Date'] = strftime('%d %B %Y',email.utils.parsedate(item[1]))
+        if item[0] == 'Subject':
+            email_dict['Subject'] = item[1]
+    email_dict['Body'] = get_body(email_path)
     return email_dict
 
 def dir_list(directory):
@@ -69,6 +57,6 @@ def dir_dict(directory):
         eml_list.append(construct_dict(directory + '/' + email))
     return eml_list
         
-def convert_json(email_list):
+def convert_json(directory):
     with open('test.json','w') as json_path:
-        json.dump(email_list,json_path)
+        json.dump(dir_dict(directory),json_path)
