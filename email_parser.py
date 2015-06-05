@@ -2,7 +2,75 @@ import email.message, email.parser, email, json, re, email.utils
 from os import listdir
 from time import strftime
 
+class Email(object):
+    def __init__(self, email_path):
+        '''Initializes an instance of the Email class.'''
+        self.path = email_path
+        
+    def get_body(self):
+        '''Stores the body of the email as an attribute, removing any whitespace characters and escapes.'''
+        fp = open(self.path)   
+        msg = email.message_from_file(fp)
+        if msg.is_multipart():
+            for part in msg.walk():
+                if part.get_content_type() == 'text/plain':
+                    self.body = remove_junk(str(part.get_payload(decode=True)))
+                    return
+        else:
+            self.body = remove_junk(str(msg.get_payload(decode=True)))
+        
+    def get_header(self):
+        '''Gets header information from the email and stores it as attributes.'''
+        fp = open(self.path)
+        msg = email.message_from_file(fp)
+        for item in msg.items():
+            if item[0] == 'From':
+                parsed_address = email.utils.parseaddr(item[1])
+                self.name = parsed_address[0]
+                self.address = parsed_address[1]
+            if item[0] == 'Date':
+                self.date = strftime('%d %B %Y',email.utils.parsedate(item[1]))
+            if item[0] == 'Subject':
+                self.subject = item[1]
+                
+    def construct_dict(self):
+        '''Constructs a dictionary of email information.
+        Takes in a file path for a .eml file'''
+        self.get_header()
+        self.get_body()
+        email_dict = {'Subject' : self.subject,
+                      'Name' : self.name,
+                      'Address' : self.address,
+                      'Date' : self.date,
+                      'Body' : self.body}
+        return email_dict
 
+class Directory(Email):
+    def __init__(self,directory):
+        '''Initializes an instance of the Directory class.'''
+        self.directory = directory
+        
+    def dir_list(self):
+        '''Returns the list of all files in self.directory'''
+        try:
+            return listdir(self.directory)
+        except WindowsError as winErr:
+            print("Directory error: " + str((winErr)))
+        
+    def dir_dict(self):
+        '''Constructs a list of email dictionaries
+        from a directory of .eml files.'''
+        eml_list = []
+        for email in self.dir_list():
+            self.path = self.directory + '/' + email
+            eml_list.append(self.construct_dict())
+        return eml_list
+        
+    def convert_json(self, json_path):
+        '''Creates a json file of email information at the specified path.'''
+        with open(json_path,'w') as json_file:
+            json.dump(self.dir_dict(),json_file)
+        
 def remove_junk(string):
     '''Removes whitespace characters, escapes, and links from a string.'''
     string = re.sub(r'\s+', ' ', string)
@@ -11,52 +79,12 @@ def remove_junk(string):
     #string = re.sub(link_regex,'',string)
     return string
 
-def get_body(email_path):
-    '''Returns the body of an email, removing any whitespace characters and escapes.'''
-    fp = open(email_path)   
-    msg = email.message_from_file(fp)
-    if msg.is_multipart():
-        for part in msg.walk():
-            if part.get_content_type() == 'text/plain':
-                return remove_junk(str(part.get_payload(decode=True)))    
-    else:
-        return remove_junk(str(msg.get_payload(decode=True)))
+def main():
+    '''Guides the user through the program.'''
+    directory = raw_input('Please enter the path to the directory of .eml files: ')
+    d = Directory(directory)
+    json_fp = raw_input('Please enter the location of the json file you would like to create.')
+    d.convert_json(json_fp)
 
-def construct_dict(email_path):
-    '''Constructs a dictionary of email information.
-    Takes in a file path for a .eml file'''
-    include = ('From','Date','Subject')
-    fp = open(email_path)
-    msg = email.message_from_file(fp)
-    email_dict = {}
-    for item in msg.items():
-        if item[0] == 'From':
-            address = email.utils.parseaddr(item[1])
-            email_dict['Name'] = address[0]
-            email_dict['Address'] = address[1]
-        if item[0] == 'Date':
-            email_dict['Date'] = strftime('%d %B %Y',email.utils.parsedate(item[1]))
-        if item[0] == 'Subject':
-            email_dict['Subject'] = item[1]
-    email_dict['Body'] = get_body(email_path)
-    return email_dict
-
-def dir_list(directory):
-    '''Returns the list of all files in the directory.'''
-    try:
-        content = listdir(directory)
-        return content
-    except WindowsError as winErr:
-        print("Directory error: " + str((winErr)))
-        
-def dir_dict(directory):
-    '''Constructs a dictionary of email dictionaries
-    from a directory of .eml files.'''
-    eml_list = []
-    for email in dir_list(directory):
-        eml_list.append(construct_dict(directory + '/' + email))
-    return eml_list
-        
-def convert_json(directory):
-    with open('test.json','w') as json_path:
-        json.dump(dir_dict(directory),json_path)
+if __name__ == '__main__':
+    main()
