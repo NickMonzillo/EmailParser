@@ -26,7 +26,7 @@ class Email(object):
         for item in msg.items():
             if item[0] == 'From':
                 parsed_address = email.utils.parseaddr(item[1])
-                self.name = parsed_address[0]
+                self.name, encoding = email.Header.decode_header(parsed_address[0])[0]
                 self.address = parsed_address[1]
             if item[0] == 'Date':
                 self.date = strftime('%d %B %Y',email.utils.parsedate(item[1]))
