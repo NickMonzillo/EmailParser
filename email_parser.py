@@ -1,12 +1,13 @@
 import email.message, email.parser, email, json, re, email.utils
 from os import listdir
 from time import strftime
+from urllib2 import Request, urlopen
 
 class Email(object):
     def __init__(self, email_path):
         '''Initializes an instance of the Email class.'''
         self.path = email_path
-        
+          
     def get_body(self):
         '''Stores the body of the email as an attribute, removing any whitespace characters and escapes.'''
         fp = open(self.path)   
@@ -18,6 +19,7 @@ class Email(object):
                     return
         else:
             self.body = remove_junk(str(msg.get_payload(decode=True)))
+            return
         
     def get_header(self):
         '''Gets header information from the email and stores it as attributes.'''
@@ -31,33 +33,65 @@ class Email(object):
             if item[0] == 'Date':
                 self.date = strftime('%d %B %Y',email.utils.parsedate(item[1]))
             if item[0] == 'Subject':
-                if item[1].startswith("=?utf-8?"):
-                    self.subject, encoding2 = email.Header.decode_header(item[1])[0]
-                    # ^^^ breaks program when encounters subject encoded with "iso-8859"
-                elif item[1].startswith("=?UTF-8?"):
+                #Handles UTF subject line encoding error
+                if item[1].startswith("=?utf-8?") or item[1].startswith("=?UTF-8?"):
                     self.subject, encoding2 = email.Header.decode_header(item[1])[0]
                     # ^^^ breaks program when encounters subject encoded with "iso-8859"
                 else:
                     parts = email.Header.decode_header(item[1])
                     parts2 = email.Header.make_header(parts)
                     self.subject = unicode(parts2)
-                
+   
+    def get_info(self):
+        '''Gets the party and state of the person who sent the email.'''
+        for member in self.congress:
+            if member['person']['lastname'] in self.name:
+                if member['person']['firstname'] in self.name:
+                    #if the last name and first name/nick name are in self.name: get self.party
+                    self.party = member['party']
+                    self.state = member['state']
+                    return
+                elif member['person']['nickname']:
+                    if member['person']['nickname'] in self.name:
+                        self.party = member['party']
+                        self.state = member['state']
+                        return
+        #If the first loop didn't classify the email, search instead for just the first two letters
+        #of the first name, along with the full last name.
+        for member in self.congress:
+            if member['person']['lastname'] in self.name:
+                if member['person']['firstname'][:2] in self.name:
+                    self.party = member['party']
+                    self.state = member['state']
+                    return
+        #If neither loop got the information, look just for the last name.
+        for member in self.congress:
+            if member['person']['lastname'] in self.name:
+                self.party = member['party']
+                self.state = member['state']
+                return
+        self.party = 'N/A'
+        self.state = 'N/A'
+                    
     def construct_dict(self):
-        '''Constructs a dictionary of email information.
-        Takes in a file path for a .eml file'''
+        '''Constructs a dictionary of email information.'''
         self.get_header()
         self.get_body()
+        self.get_info()
         email_dict = {'Subject' : self.subject,
                       'Name' : self.name,
                       'Address' : self.address,
                       'Date' : self.date,
-                      'Body' : self.body}
+                      'Body' : self.body,
+                      'Party' : self.party,
+                      'State' : self.state}
         return email_dict
 
 class Directory(Email):
     def __init__(self,directory):
         '''Initializes an instance of the Directory class.'''
         self.directory = directory
+        self.congress = api_call()
         
     def dir_list(self):
         '''Returns the list of all files in self.directory'''
@@ -88,12 +122,20 @@ def remove_junk(string):
     #string = re.sub(link_regex,'',string)
     return string
 
+def api_call():
+    '''Makes an api call and returns a JSOn object of information on the current US congress.'''
+    request = Request('https://www.govtrack.us/api/v2/role?current=true&limit=600')
+    return json.load(urlopen(request))['objects']
+
 def main():
     '''Guides the user through the program.'''
     directory = raw_input('Please enter the path to the directory of .eml files: ')
     d = Directory(directory)
-    json_fp = raw_input('Please enter the location of the json file you would like to create.')
+    json_fp = raw_input('Please enter the location of the json file you would like to edit: ')
     d.convert_json(json_fp)
 
+ 
 if __name__ == '__main__':
     main()
+
+
