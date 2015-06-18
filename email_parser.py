@@ -29,25 +29,19 @@ class Email(object):
             if item[0] == 'From':
                 parsed_address = email.utils.parseaddr(item[1])
                 self.name, encoding = email.Header.decode_header(parsed_address[0])[0]
+                self.name = remove_non_ascii(self.name)
                 self.address = parsed_address[1]
             if item[0] == 'Date':
                 self.date = strftime('%d %B %Y',email.utils.parsedate(item[1]))
             if item[0] == 'Subject':
-                #Handles UTF subject line encoding error
-                if item[1].startswith("=?utf-8?") or item[1].startswith("=?UTF-8?"):
-                    self.subject, encoding2 = email.Header.decode_header(item[1])[0]
-                    # ^^^ breaks program when encounters subject encoded with "iso-8859"
-                else:
-                    parts = email.Header.decode_header(item[1])
-                    parts2 = email.Header.make_header(parts)
-                    self.subject = unicode(parts2)
+                self.subject = item[1]
    
     def get_info(self):
         '''Gets the party and state of the person who sent the email.'''
         for member in self.congress:
             if member['person']['lastname'] in self.name:
                 if member['person']['firstname'] in self.name:
-                    #if the last name and first name/nick name are in self.name: get self.party
+                #if the last name and first name/nick name are in self.name: get self.party
                     self.party = member['party']
                     self.state = member['state']
                     return
@@ -122,6 +116,10 @@ def remove_junk(string):
     #string = re.sub(link_regex,'',string)
     return string
 
+def remove_non_ascii(text):
+    '''Removes any non-ascii characters from a string.'''
+    return ''.join(i for i in text if ord(i)<128)
+
 def api_call():
     '''Makes an api call and returns a JSOn object of information on the current US congress.'''
     request = Request('https://www.govtrack.us/api/v2/role?current=true&limit=600')
@@ -131,7 +129,7 @@ def main():
     '''Guides the user through the program.'''
     directory = raw_input('Please enter the path to the directory of .eml files: ')
     d = Directory(directory)
-    json_fp = raw_input('Please enter the location of the json file you would like to edit: ')
+    json_fp = raw_input('Please enter the location of the json file you would like to create: ')
     d.convert_json(json_fp)
 
  
