@@ -34,7 +34,13 @@ class Email(object):
             if item[0] == 'Date':
                 self.date = strftime('%d %B %Y',email.utils.parsedate(item[1]))
             if item[0] == 'Subject':
-                self.subject = item[1]
+                if item[1].startswith("=?utf-8?") or item[1].startswith("=?UTF-8?"):
+                    self.subject, encoding2 = email.Header.decode_header(item[1])[0]
+                    self.subject = remove_non_ascii(self.subject)
+                    # ^^^ breaks program when encounters subject encoded with "iso-8859"
+                else:
+                    self.subject = item[1]
+                    #self.subject = remove_non_ascii(self.subject)
    
     def get_info(self):
         '''Gets the party and state of the person who sent the email.'''
