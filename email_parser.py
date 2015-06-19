@@ -118,8 +118,12 @@ def remove_junk(string):
     '''Removes whitespace characters, escapes, and links from a string.'''
     string = re.sub(r'\s+', ' ', string)
     string = re.sub(r"[\x80-\xff]", '', string)
-    #link_regex = "(([\w]+:)?//)?(([\d\w]|%[a-fA-f\d]{2,2})+(:([\d\w]|%[a-fA-f\d]{2,2})+)?@)?([\d\w][-\d\w]{0,253}[\d\w]\.)+[\w]{2,4}(:[\d]+)?(/([-+_~.\d\w]|%[a-fA-f\d]{2,2})*)*(\?(&?([-+_~.\d\w]|%[a-fA-f\d]{2,2})=?)*)?(#([-+_~.\d\w]|%[a-fA-f\d]{2,2})*)?"
-    #string = re.sub(link_regex,'',string)
+    link_regex=["<http.*?>","http.*? ","http.*?[^\s]\.gov","http.*?[^\s]\.com","http.*?[^\s]\.COM",
+                "www.*?[^\s]\.com","www.*?[^\s]\.org","www.*?[^\s]\.net","www.*?[^\s]\.gov","/.*?[^\s]\.com",
+                "/.*?[^\s]\.COM","/.*?[^\s]\.gov",",.*?[^\s]\.gov",",.*?[^\s]\.com",
+                "<.*?>"]
+    for curr in link_regex:
+        string = re.sub(curr,'',string)
     return string
 
 def remove_non_ascii(text):
