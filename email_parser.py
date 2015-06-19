@@ -16,7 +16,9 @@ class Email(object):
             for part in msg.walk():
                 if part.get_content_type() == 'text/plain':
                     self.body = remove_junk(str(part.get_payload(decode=True)))
-                    return
+                if len(self.body) <= 16:
+                    self.valid = False
+                return
         else:
             self.body = remove_junk(str(msg.get_payload(decode=True)))
             return
@@ -31,6 +33,10 @@ class Email(object):
                 self.name, encoding = email.Header.decode_header(parsed_address[0])[0]
                 self.name = remove_non_ascii(self.name)
                 self.address = parsed_address[1]
+                if "google.com" in self.address or "Google.com" in self.address or "pols.exp@gmail.com" in self.address:
+                    self.valid = False
+                else:
+                    self.valid = True
             if item[0] == 'Date':
                 self.date = strftime('%d %B %Y',email.utils.parsedate(item[1]))
             if item[0] == 'Subject':
@@ -85,7 +91,8 @@ class Email(object):
                       'Body' : self.body,
                       'Party' : self.party,
                       'State' : self.state}
-        return email_dict
+        if self.valid == True
+            return email_dict
 
 class Directory(Email):
     def __init__(self,directory):
@@ -106,7 +113,9 @@ class Directory(Email):
         eml_list = []
         for email in self.dir_list():
             self.path = self.directory + '/' + email
-            eml_list.append(self.construct_dict())
+            self.dict = self.construct_dict()
+            if self.dict is not None:
+                eml_list.append(self.dict)
         return eml_list
         
     def convert_json(self, json_path):
