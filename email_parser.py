@@ -35,6 +35,7 @@ class Email(object):
                 self.address = parsed_address[1]
                 if "google.com" in self.address or "Google.com" in self.address or "pols.exp@gmail.com" in self.address:
                     self.valid = False
+                    return
                 else:
                     self.valid = True
             if item[0] == 'Date':
@@ -82,6 +83,8 @@ class Email(object):
     def construct_dict(self):
         '''Constructs a dictionary of email information.'''
         self.get_header()
+        if self.valid == False
+            return False
         self.get_body()
         self.get_info()
         email_dict = {'Subject' : self.subject,
@@ -91,8 +94,7 @@ class Email(object):
                       'Body' : self.body,
                       'Party' : self.party,
                       'State' : self.state}
-        if self.valid == True
-            return email_dict
+        return email_dict
 
 class Directory(Email):
     def __init__(self,directory):
@@ -113,8 +115,8 @@ class Directory(Email):
         eml_list = []
         for email in self.dir_list():
             self.path = self.directory + '/' + email
-            self.dict = self.construct_dict()
-            if self.dict is not None:
+            eml_dict = self.construct_dict()
+            if eml_dict:
                 eml_list.append(self.dict)
         return eml_list
         
