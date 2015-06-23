@@ -16,11 +16,13 @@ class Email(object):
             for part in msg.walk():
                 if part.get_content_type() == 'text/plain':
                     self.body = remove_junk(str(part.get_payload(decode=True)))
-                if len(self.body) <= 16:
-                    self.valid = False
-                return
+                    if len(self.body) <= 16:
+                        self.valid = False
+                    return
         else:
             self.body = remove_junk(str(msg.get_payload(decode=True)))
+            if len(self.body) <= 16:
+                self.valid = False
             return
         
     def get_header(self):
@@ -83,9 +85,9 @@ class Email(object):
     def construct_dict(self):
         '''Constructs a dictionary of email information.'''
         self.get_header()
-        if self.valid == False
-            return False
         self.get_body()
+        if self.valid == False:
+            return False
         self.get_info()
         email_dict = {'Subject' : self.subject,
                       'Name' : self.name,
@@ -117,7 +119,7 @@ class Directory(Email):
             self.path = self.directory + '/' + email
             eml_dict = self.construct_dict()
             if eml_dict:
-                eml_list.append(self.dict)
+                eml_list.append(eml_dict)
         return eml_list
         
     def convert_json(self, json_path):
