@@ -57,47 +57,37 @@ class Email(object):
             if member['person']['lastname'] in self.name:
                 if member['person']['firstname'] in self.name:
                 #if the last name and first name/nick name are in self.name: get self.party
-                    self.party = member['party']
-                    self.state = member['state']
-                    return
+                    return pull_api_info(member)
                 elif member['person']['nickname']:
                     if member['person']['nickname'] in self.name:
-                        self.party = member['party']
-                        self.state = member['state']
-                        return
+                        return pull_api_info(member)
         #If the first loop didn't classify the email, search instead for just the first two letters
         #of the first name, along with the full last name.
         for member in self.congress:
             if member['person']['lastname'] in self.name:
                 if member['person']['firstname'][:2] in self.name:
-                    self.party = member['party']
-                    self.state = member['state']
-                    return
+                    return pull_api_info(member)
         #If neither loop got the information, look just for the last name.
         for member in self.congress:
             if member['person']['lastname'] in self.name:
-                self.party = member['party']
-                self.state = member['state']
-                return
-        self.party = 'N/A'
-        self.state = 'N/A'
-                    
+                return pull_api_info(member)
+        
     def construct_dict(self):
         '''Constructs a dictionary of email information.'''
         self.get_header()
         self.get_body()
         if self.valid == False:
             return False
-        self.get_info()
-        email_dict = {'Subject' : self.subject,
-                      'Name' : self.name,
-                      'Address' : self.address,
-                      'Date' : self.date,
-                      'Body' : self.body,
-                      'Party' : self.party,
-                      'State' : self.state}
-        return email_dict
-
+        try:
+            email_dict = self.get_info()
+            email_dict['Subject'] = self.subject
+            email_dict['Name'] = self.name
+            email_dict['Address'] = self.address
+            email_dict['Date'] = self.date
+            email_dict['Body'] = self.body
+            return email_dict
+        except:
+            return False
 class Directory(Email):
     def __init__(self,directory):
         '''Initializes an instance of the Directory class.'''
@@ -148,6 +138,17 @@ def api_call():
     request = Request('https://www.govtrack.us/api/v2/role?current=true&limit=600')
     return json.load(urlopen(request))['objects']
 
+def pull_api_info(entry):
+        '''Saves all of the API fields as attributes.'''
+        info_dict = {}
+        for key in entry:
+            if key == 'person':
+                for person_key in entry[key]:
+                    info_dict[person_key] = entry[key][person_key]
+            else:        
+                info_dict[key] = entry[key]
+        return info_dict
+    
 def main():
     '''Guides the user through the program.'''
     directory = raw_input('Please enter the path to the directory of .eml files: ')
