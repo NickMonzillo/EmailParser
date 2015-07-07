@@ -41,7 +41,7 @@ class Email(object):
                 else:
                     self.valid = True
             if item[0] == 'Date':
-                self.date = strftime('%d %B %Y',email.utils.parsedate(item[1]))
+                self.date = strftime('%m/%d/%Y',email.utils.parsedate(item[1]))
             if item[0] == 'Subject':
                 if item[1].startswith("=?utf-8?") or item[1].startswith("=?UTF-8?"):
                     self.subject, encoding2 = email.Header.decode_header(item[1])[0]
@@ -139,7 +139,7 @@ def api_call():
     return json.load(urlopen(request))['objects']
 
 def pull_api_info(entry):
-        '''Saves all of the API fields as attributes.'''
+        '''Returns a dictionary of all the info from the API call.'''
         info_dict = {}
         for key in entry:
             if key == 'person':
