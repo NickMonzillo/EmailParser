@@ -42,6 +42,8 @@ class Email(object):
                     self.valid = True
             if item[0] == 'Date':
                 self.date = strftime('%m/%d/%Y',email.utils.parsedate(item[1]))
+                self.month = strftime('%m',email.utils.parsedate(item[1]))
+                self.year = strftime('%Y',email.utils.parsedate(item[1]))
             if item[0] == 'Subject':
                 if item[1].startswith("=?utf-8?") or item[1].startswith("=?UTF-8?"):
                     self.subject, encoding2 = email.Header.decode_header(item[1])[0]
@@ -52,7 +54,7 @@ class Email(object):
                     #self.subject = remove_non_ascii(self.subject)
    
     def get_info(self):
-        '''Gets the party and state of the person who sent the email.'''
+        '''Returns a dictionary containing the api information of the sender of an email.'''
         for member in self.congress:
             if member['person']['lastname'] in self.name:
                 if member['person']['firstname'] in self.name:
@@ -85,9 +87,12 @@ class Email(object):
             email_dict['Address'] = self.address
             email_dict['Date'] = self.date
             email_dict['Body'] = self.body
+            email_dict['Month'] = self.month
+            email_dict['Year'] = self.year
             return email_dict
         except:
             return False
+        
 class Directory(Email):
     def __init__(self,directory):
         '''Initializes an instance of the Directory class.'''
