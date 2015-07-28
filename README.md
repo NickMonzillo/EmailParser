@@ -9,10 +9,10 @@ This program is very lightweight, and can deal with directories with large amoun
 
 The Scripts folder houses some of the scripts that can be used to create datasets from the email information. You can view some examples of these datasets in the Data folder.
 
-frequences.py output:
+frequencies.py output:
 
-[frequencies.py](https://github.com/NickMonzillo/EmailParser/blob/master/Media/frequencies.PNG)
+[frequencies.py](/Media/frequencies.PNG)
 
 common_words.py output:
 
-[common_words.py](https://github.com/NickMonzillo/EmailParser/blob/master/Media/common_words.png)
+[common_words.py](/Media/common_words.png)
