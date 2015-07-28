@@ -1,7 +1,8 @@
 import string, json, csv
+from itertools import chain
 
-def separate(text):
-    '''Takes text and separates it into a list of words'''
+def separate(text,stopwords=''):
+    '''Takes text and separates it into a list of words, removes stopwords.'''
     words = text.split()
     standardwords = []
     for word in words:
@@ -9,7 +10,7 @@ def separate(text):
         for char in word:
             if char in string.ascii_letters:
                newstr += char.lower()
-        if newstr != '' and newstr not in STOPWORDS:
+        if newstr != '' and newstr not in stopwords:
             standardwords.append(newstr)
     return standardwords
 
@@ -24,7 +25,7 @@ def read_json(json_fp):
     with open (json_fp,'r') as json_file:
         data = json.load(json_file)
         return data
-
+    
 def add_to_dict(dictionary,word_list,month):
     if not dictionary.has_key(month):
         dictionary[month] = {}
@@ -33,8 +34,8 @@ def add_to_dict(dictionary,word_list,month):
             dictionary[month][word] = 1
         else:
             dictionary[month][word] += 1
-    
-def monthly_counts(json_fp,search_term):
+            
+def monthly_counts(data,search_term):
     '''Returns a dictionary of wordcounts by month
     from emails containing the search_term.
     The format is freq_dict[(Month,Year)] = {word:frequency}.'''
@@ -45,10 +46,10 @@ def monthly_counts(json_fp,search_term):
     female = {'id': 'female'}
     senate = {'id': 'senate'}
     house = {'id': 'house'}
-    for email in read_json(json_fp):
+    for email in data:
         if search_term in email['Body']:
             month = (email['Month'],email['Year'])
-            words = separate(email['Body'])
+            words = separate(email['Body'],STOPWORDS)
             add_to_dict(total,words,month)
             if email['party'] == 'Republican':
                 add_to_dict(republican,words,month)
@@ -77,7 +78,7 @@ def sort_counts(freq_dict,word_count):
             for word in freq_dict[month]:
                 sort_dict[month].append((word,freq_dict[month][word]))
             sort_dict[month].sort(key=lambda x: x[1],reverse=True)
-        #sort_dict[month] = sort_dict[month][:word_count]
+            sort_dict[month] = sort_dict[month][:word_count]
         else:
             sort_dict['id'] = freq_dict['id']
     return sort_dict
@@ -88,62 +89,31 @@ def multiple_sort(list_of_dicts,word_count):
     for dictionary in list_of_dicts:
         dictionary = sort_counts(dictionary,word_count)
         return_list.append(dictionary)
-    return (return_list,word_count)
+    return return_list
 
-def get_top_x(list_of_dicts):
-    '''Returns the top x words and their frequencies by month.
-    Pass the results of multiple_sort() as the argument.'''
-    top_dict = {}
-    word_count = list_of_dicts[1]
-    for dictionary in list_of_dicts[0]:
-        for month in dictionary:
-            if not top_dict.has_key(month):
-                top_dict[month] = []
-            for word_tuple in dictionary[month[:word_count]]: #Only take the top word_count words from each dict.
-                if word_tuple[0] not in top_dict[month]:
-                    top_dict[month].append(word_tuple[0])
-    return top_dict
-                
+def format_csv(sorted_dicts):
+    total,republican,democrat,male,female,senate,house = sorted_dicts
+    header = ['Year','Month','Total_word','Total_freq','Republican_word','Republican_freq','Democrat_word','Democrat_freq','Male_word','Male_freq','Female_word','Female_freq','Senate_word','Senate_freq','House_word','House_freq']
+    return_list = [header]
+    for month in total:
+        if month != 'id':
+            prepend = [month[1],month[0]]
+            monthly_words = zip(total[month],republican[month],democrat[month],male[month],female[month],senate[month],house[month])
+            for i in range(len(monthly_words)):
+                monthly_words[i] = prepend + list(chain.from_iterable(monthly_words[i]))
+                return_list.append(monthly_words[i])
+    return return_list
 
-def tupleize(sorted_dicts):
-    '''Forms a list of 10-tuples from the multiple_sort() dictionary.
-    Use this function to make it easier to write the dict to a csv.'''
-    csv_list = [('Year','Month','Word','Total','Republican','Democrat','Male','Female','House','Senate')]
-    word_list = get_top_x(sorted_dicts)
-    for month in word_list:
-        for word in word_list[month]:
-            for dictionary in sorted_dicts[0]:
-                if dictionary.has_key(month):
-                    if word not in [x[1] for x in dictionary[month]]:
-                        dictionary[month].append((word,0))
-                    for dict_word in dictionary[month]:
-                        if dict_word[0] == word:
-                            if dictionary['id'] == 'total':
-                                total_freq = dict_word[1]
-                            if dictionary['id'] == 'republican':
-                                republican_freq = dict_word[1]
-                            if dictionary['id'] == 'democrat':
-                                democrat_freq = dict_word[1]
-                            if dictionary['id'] == 'male':
-                                male_freq = dict_word[1]
-                            if dictionary['id'] == 'female':
-                                female_freq = dict_word[1]
-                            if dictionary['id'] == 'senate':
-                                senate_freq = dict_word[1]
-                            if dictionary['id'] == 'house':
-                                house_freq = dict_word[1]
-                        break
-        csv_list.append((month[1],month[0],word[0],total_freq,republican_freq,democrat_freq,male_freq,female_freq,house_freq,senate_freq))
-    return csv_list
-                
 def write_csv(data,csv_fp):
     '''Writes a list to a csv file.'''
     with open(csv_fp,'w') as out:
         csv_out=csv.writer(out,lineterminator='\n')
         for row in data:
             csv_out.writerow(row)
-            
+
 STOPWORDS = read_file('stopwords.txt')
-counts = monthly_counts('small_dataset.json','Obama')
+data = read_json('analysis_dataset.json')
+counts = monthly_counts(data,'Obama')
 sorted_counts = multiple_sort(counts,10)
-write_csv(tupleize(sorted_counts),'common_words.csv')
+write_csv(format_csv(sorted_counts),'common_words_test.csv')
+

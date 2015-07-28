@@ -63,8 +63,8 @@ def get_state_info(fp='state_table.json'):
     info = read_json(fp)
     abbreviations,states = [],[]
     for state in info:
-        abbreviations.append(state['abbreviation'])
-        states.append(state['name'])
+        abbreviations.append(state['abbreviation'].lower())
+        states.append(state['name'].lower())
     return (abbreviations,states)
 
 def get_names():
@@ -74,9 +74,9 @@ def get_names():
     firstnames,lastnames = [],[]
     for congressman in info:
         if congressman['person']['firstname'] not in firstnames:
-            firstnames.append(congressman['person']['firstname'])
+            firstnames.append(congressman['person']['firstname'].lower())
         if congressman['person']['lastname'] not in lastnames:
-            lastnames.append(congressman['person']['lastname'])
+            lastnames.append(congressman['person']['lastname'].lower())
     return (lastnames,firstnames)
 
 def form_stopwords(stopwords_fp='stopwords.txt'):
@@ -142,15 +142,13 @@ def format_lists(parsed_json):
                 except:
                     overflow_list.append(term_list)
         loop_count += 1
-        if loop_count%100==0:
+        if loop_count%1000==0:
             print loop_count
     print 'Done with list creation!'
     #Get rid of all words that occur < min_ooccur(default 100) times in the dataset
-    rid_uncommon_words(total_dict,25)
+    rid_uncommon_words(total_dict,250)
     print 'total_dict '+ str(len(total_dict.keys()))
     print 'Done with ridding words'
-    print total_dict.keys()
-    print sparse_list[:200]
     sparse_list = [x for x in sparse_list if x[1] in total_dict.keys()]
     print 'sparse list: ' +str(len(sparse_list))
     print 'On overflow removal'
@@ -167,14 +165,14 @@ def write_csv(data,csv_fp,overflow=False):
         if overflow:
             for row in overflow:
                 csv_out.writerow(row)
-                
+            
 STOPWORDS = form_stopwords()
-emails = random.sample(read_json('analysis_dataset.json'),10000)
+emails = read_json('analysis_dataset.json')
 print len(emails)
 lists = format_lists(emails)
 print 'On csv writing!'
-write_csv(lists[0],'metadata_10k.csv')
+write_csv(lists[0],'metadata_20k.csv')
 print 'list 1: ' + str(len(lists[1]))
 print 'list 2: ' + str(len(lists[2]))
-write_csv(lists[1],'sparse_10k.csv',lists[2])
+write_csv(lists[1],'sparse_20k.csv',lists[2])
 
