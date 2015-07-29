@@ -11,8 +11,8 @@ The Scripts folder houses some of the scripts that can be used to create dataset
 
 frequencies.py output:
 
-[frequencies.py](/Media/frequencies.PNG)
+![frequencies.py](/Media/frequencies.PNG)
 
 common_words.py output:
 
-[common_words.py](/Media/common_words.png)
+![common_words.py](/Media/common_words.png)
