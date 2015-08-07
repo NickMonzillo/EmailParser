@@ -3,6 +3,8 @@ Stores email header and body information in JSON format.
 
 This program is a tool to convert a directory of .eml files into a json format. The json file will contain all header and body information for each email.
 
+**Currently this program is being used for a research project that renders it too specific for general use. Once this project is over, I will tune the program for a more general purpose.**
+
 To use this program, simply run the program from a Python interpreter. The prompts in the console will ask you for directory and json file locations. Once provided, it will generate the json in the specified location.
 
 This program is very lightweight, and can deal with directories with large amounts of files.
