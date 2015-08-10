@@ -2,6 +2,9 @@ import email.message, email.parser, email, json, re, email.utils
 from os import listdir
 from time import strftime
 from urllib2 import Request, urlopen
+import sPickle
+from wordExtractor2 import word_extractor
+from textblob import TextBlob
 
 class Email(object):
     def __init__(self, email_path):
@@ -89,9 +92,30 @@ class Email(object):
             email_dict['Body'] = self.body
             email_dict['Month'] = self.month
             email_dict['Year'] = self.year
+            email_dict['polarity'] = self.polarity()
             return email_dict
         except:
-            return False
+            return None
+
+    def polarity(self):
+        '''Assigns a polarity to the email.
+        Higher number means that the email praises Obama.
+        Lower number means the email bashes Obama.'''
+        text = word_extractor(self.body, 'obama', 75)
+        with open("top100", 'rb') as f:
+            top100 = sPickle.load(f)
+        with open("bottom100", 'rb') as f:
+            bottom100 = sPickle.load(f)
+        score = 0
+        if text:
+            for word in text.split(" "):
+                if word in top100:
+                    score += top100[word]
+                elif word in bottom100:
+                    score -= bottom100[word]
+        if not score:
+            return 'None'
+        return score
         
 class Directory(Email):
     def __init__(self,directory):
@@ -164,5 +188,4 @@ def main():
  
 if __name__ == '__main__':
     main()
-
 
