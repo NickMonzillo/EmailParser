@@ -19,14 +19,14 @@ class Alignment(object):
         '''Creates an alignment field for all emails.
         This uses the thresholds created in establish_thresholds().'''
         for email in self.emails:
-            if email['polarity'] == 'None':
-                email['alignment'] = 'None'
             if email['polarity'] >= self.align_threshold:
                 email['alignment'] = 'Align'
             elif email['polarity'] <= self.bash_threshold:
                 email['alignment'] = 'Bash'
             else:
                 email['alignment'] = 'Neutral'
+            if email['polarity'] == 'None':
+                email['alignment'] = 'None'
     def convert_json(self,json_path):
         '''Creates a json file of email information at the specified path.'''
         with open(json_path,'w') as json_file:
@@ -38,8 +38,10 @@ def read_json(json_fp):
         data = json.load(json_file)
         return data
 
-a = Alignment('pol_test.json')
+a = Alignment('small_dataset.json')
 a.assign_alignment()
+print 'max: ' + str(max(a.raw_polarities))
+print 'min: ' + str(min(a.raw_polarities))
 print 'align: ' + str(a.align_threshold)
 print 'bash: ' + str(a.bash_threshold)
-a.convert_json('pol_test.json')
+a.convert_json('small_dataset.json')

@@ -5,10 +5,10 @@ class Analyzer(object):
         '''Initializes an instance of the Analyzer class.'''
         self.emails = read_json(json_fp)
         #self.data = [x for x in self.emails if x['polarity'] != None] 
-        self.align_raw,self.bash_raw,self.total_counts = self.raw_count_dicts()
+        self.align_raw,self.bash_raw,self.neutral_raw,self.total_counts = self.raw_count_dicts()
         self.align_pct = divide_dictionaries(self.total_counts,self.align_raw)
         self.bash_pct = divide_dictionaries(self.total_counts,self.bash_raw)
-
+        self.neutral_pct = divide_dictionaries(self.total_counts,self.neutral_raw)
     def raw_count_dicts(self):
         '''Returns a list of dictionaries (align_dict,bash_dict)
         bash_dict[sender] = # of bash emails sent
@@ -17,6 +17,7 @@ class Analyzer(object):
         align_dict = {}
         bash_dict = {}
         total_dict = {}
+        neutral_dict = {}
         for email in self.emails:
             name = email['firstname'] + ' ' + email['lastname']
             if not total_dict.has_key(name):
@@ -26,18 +27,22 @@ class Analyzer(object):
                 align_dict[name] = 0
             if not bash_dict.has_key(name):
                     bash_dict[name] = 0
+            if not neutral_dict.has_key(name):
+                    neutral_dict[name] = 0      
             if email['alignment'] == 'Align':
                 align_dict[name] += 1
             elif email['alignment'] == 'Bash':
                 bash_dict[name] += 1
-        return (align_dict,bash_dict,total_dict)
+            elif email['alignment'] == 'Neutral':
+                neutral_dict[name] += 1
+        return (align_dict,bash_dict,neutral_dict,total_dict)
         
 
     def generate_csv(self):
         '''Returns the list of tuples that will be written to a csv.'''
-        return_list = [('Sender','Total','align_raw','align_pct','bash_raw','bash_pct')]
+        return_list = [('Sender','Total','align_raw','align_pct','neutral_raw','neutral_pct','bash_raw','bash_pct')]
         for sender in self.total_counts.keys():
-            entry = (sender,self.total_counts[sender],self.align_raw[sender],self.align_pct[sender],self.bash_raw[sender],self.bash_pct[sender])
+            entry = (sender,self.total_counts[sender],self.align_raw[sender],self.align_pct[sender],self.neutral_raw[sender],self.neutral_pct[sender],self.bash_raw[sender],self.bash_pct[sender])
             return_list.append(entry)
         return return_list
     
@@ -63,7 +68,7 @@ def write_csv(data,csv_fp):
             except:
                 continue
 
-a = Analyzer('pol_test.json')
+a = Analyzer('small_dataset.json')
 csv_list = a.generate_csv()
 print len(a.total_counts.keys())
-#write_csv(csv_list,'alignment.csv')
+write_csv(csv_list,'test_alignment.csv')
