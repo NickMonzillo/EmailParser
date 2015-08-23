@@ -78,7 +78,7 @@ class Email(object):
             if member['person']['lastname'] in self.name:
                 return pull_api_info(member)
         
-    def construct_dict(self,assignment,extractor_count,cutoff):
+    def construct_dict(self,assignment):
         '''Constructs a dictionary of email information.'''
         self.get_header()
         self.get_body()
@@ -93,49 +93,15 @@ class Email(object):
             email_dict['Body'] = self.body
             email_dict['Month'] = self.month
             email_dict['Year'] = self.year
-            email_dict['polarity'] = self.polarity(extractor_count,cutoff)
             email_dict['assignment'] = assignment
             return email_dict
         except:
             return None
-
-    def polarity(self,extractor_count=75,cutoff=50,csv_fp='word_values_MWR.csv'):
-        '''Assigns a polarity to the email.
-        Higher number means that the email praises Obama.
-        Lower number means the email bashes Obama.'''
-        text = word_extractor(self.body, 'obama', extractor_count)
-        score = 0
-        #if 'Obama' in self.body:
-            #text = self.body
-        with open(csv_fp,'rb') as csvfile:
-            value_list = list(tuple(line) for line in csv.reader(csvfile,delimiter=','))
-        align = value_list[:50]
-        bash = value_list[50:]
-        align = align[:cutoff]
-        bash = bash[:cutoff]
-        value_list = align + bash
-        if text:
-            for word in text.split():
-                word = word.lower()
-                for scored_word,value in value_list:
-                    if word == scored_word:
-                        score += float(value)
-        if not score:
-            #print self.body
-            #print self.subject
-            #print self.name
-            #raw_input()
-            return 'None'
-        #if self.subject == 'Leading the Effort to Secure Half a Billion Dollars for Tennessee Hospitals':
-         #   print self.body
-        return score
     
 class Directory(Email):
-    def __init__(self,directory,extractor_count=75,cutoff = 50,api_info=None):
+    def __init__(self,directory,api_info=None):
         '''Initializes an instance of the Directory class.'''
         self.directory = directory
-        self.cutoff = cutoff
-        self.extractor_count = extractor_count
         self.congress = api_info
         self.email_json = self.dir_dict()
         
@@ -158,7 +124,7 @@ class Directory(Email):
             self.directory = folder
             for email in self.dir_list():
                 self.path = self.directory + '/' + email
-                eml_dict = self.construct_dict(assignments[assignment_count],self.extractor_count,self.cutoff)
+                eml_dict = self.construct_dict(assignments[assignment_count])
                 if eml_dict:
                     eml_list.append(eml_dict)
             assignment_count += 1
@@ -166,13 +132,19 @@ class Directory(Email):
         
     def convert_json(self, json_path):
         '''Creates a json file of email information at the specified path.'''
-        self.email_json = self.dir_dict()
         with open(json_path,'w') as json_file:
             json.dump(self.email_json,json_file)
 
 class Alignment(object):
-    def __init__(self,email_json):
+    def __init__(self,email_json,value_list,extractor_count,cutoff):
         self.emails = email_json
+        align = value_list[:50]
+        bash = value_list[50:]
+        align = align[:cutoff]
+        bash = bash[:cutoff]
+        self.value_list = align + bash
+        self.extractor = extractor_count
+        self.assign_polarities()
         self.raw_polarities = [x['polarity'] for x in self.emails if x['polarity'] != 'None']
         multiplier = 0
         #write_file = open('accuracies.txt','w')
@@ -195,7 +167,36 @@ class Alignment(object):
         bash = avg_pol - (multiplier*std_dev)
         print 'avg: ' + str(avg_pol)
         return align,bash
+    
+    def polarity(self,body):
+        '''Assigns a polarity to the email.
+        Higher number means that the email praises Obama.
+        Lower number means the email bashes Obama.'''
+        text = word_extractor(body, 'obama', self.extractor)
+        score = 0
+        #if 'Obama' in self.body:
+            #text = self.body
+        if text:
+            for word in text.split():
+                word = word.lower()
+                for scored_word,value in self.value_list:
+                    if word == scored_word:
+                        score += float(value)
+        if not score:
+            #print self.body
+            #print self.subject
+            #print self.name
+            #raw_input()
+            return 'None'
+        #if self.subject == 'Leading the Effort to Secure Half a Billion Dollars for Tennessee Hospitals':
+         #   print self.body
+        return score
 
+    def assign_polarities(self):
+        '''Assigns polarities to all emails in self.emails'''
+        for email in self.emails:
+            email['polarity'] = self.polarity(email['Body'])
+            
     def assign_alignment(self):
         '''Creates an alignment field for all emails.
         This uses the thresholds created in establish_thresholds().'''
@@ -271,30 +272,30 @@ def main():
     write_str = ''
     accuracies = []
     api = api_call()
+    csvfile = open('word_values.csv','rb')
+    value_list = list(tuple(line) for line in csv.reader(csvfile,delimiter=','))
+    d = Directory('directory',api)
+            #json_fp = raw_input('Please enter the location of the json file you would like to create: ')
+    json_fp = 'accuracy_test.json'
+    #d.convert_json(json_fp)
     while i <= 50:
         while j <= 100:
             print (i,j)
-            print 'pct_done: ' + str(float((i*(j-10)))/5000)
-            d = Directory('directory',j,i,api)
-            #json_fp = raw_input('Please enter the location of the json file you would like to create: ')
-            json_fp = 'accuracy_test.json'
-    #d.convert_json(json_fp)
-            a = Alignment(d.email_json)
+            a = Alignment(d.email_json,value_list,j,i)
             a.assign_alignment()
             write_str += '(' + str(i) + ' , ' + str(j) + ' , ' + str(accuracy(a.emails)) + ')\n'
             acc = accuracy(a.emails)
             print acc
             accuracies.append(acc)
-            j += 1
-        i += 1
+            j += 5
+        i += 2
         j=10
-    with open('accuracies_cutoff.txt','w') as f:
+    with open('accuracies_cutoff_2.txt','w') as f:
         f.write(write_str)
     print 'Max: ' + str(max(accuracies))
     print 'Min: ' + str(min(accuracies))
     print 'Std_dev: ' + str(stdev(accuracies))
     print 'Mean: ' + str(mean(accuracies))
-    
     a.convert_json(json_fp)
 if __name__ == '__main__':
     main()
