@@ -136,16 +136,12 @@ class Directory(Email):
             json.dump(self.email_json,json_file)
 
 class Alignment(object):
-    def __init__(self,email_json,value_list,extractor_count,cutoff):
+    def __init__(self,email_json,value_list,extractor_count=25,cutoff=None):
         self.emails = email_json
-        align = value_list[:50]
-        bash = value_list[50:]
-        align = align[:cutoff]
-        bash = bash[:cutoff]
-        self.value_list = align + bash
+        self.value_list = value_list
         self.extractor = extractor_count
         self.assign_polarities()
-        self.raw_polarities = [x['polarity'] for x in self.emails if x['polarity'] != 'None']
+        self.raw_polarities = [x['polarity'] for x in self.emails if x['polarity'] not in ('None','Neutral')]
         multiplier = 0
         #write_file = open('accuracies.txt','w')
         #write_str = ''
@@ -182,15 +178,12 @@ class Alignment(object):
                 for scored_word,value in self.value_list:
                     if word == scored_word:
                         score += float(value)
-        if not score:
-            #print self.body
-            #print self.subject
-            #print self.name
-            #raw_input()
+            if not score:
+                return 'None'
+            return score
+        else:
             return 'None'
-        #if self.subject == 'Leading the Effort to Secure Half a Billion Dollars for Tennessee Hospitals':
-         #   print self.body
-        return score
+        
 
     def assign_polarities(self):
         '''Assigns polarities to all emails in self.emails'''
@@ -209,6 +202,8 @@ class Alignment(object):
                 email['alignment'] = 'Neutral'
             if email['polarity'] == 'None':
                 email['alignment'] = 'None'
+            if email['polarity'] == 'Neutral':
+                email['alignment'] = 'Neutral'
                 
     def convert_json(self,json_path):
         '''Creates a json file of email information at the specified path.'''
@@ -264,33 +259,49 @@ def accuracy(data):
             total += 1
     return correct/total
 
+def iter_pickle():
+    '''Returns an iterable of pickle files in the given directories.'''
+    align_path = 'pickle/align/'
+    bash_path = 'pickle/bash/'
+    pickle_iterable = []
+    #for folder in folders:
+    for pickle_file in listdir(align_path):
+        match = pickle_file.replace('align','bash')
+        match = bash_path + match
+        pickle_file = align_path + pickle_file
+        pickle_iterable.append((pickle_file,match))
+    return pickle_iterable
+
 def main():
     '''Guides the user through the program.'''
     #directory = raw_input('Please enter the path to the directory of .eml files: ')
-    i = 1
-    j = 10
     write_str = ''
     accuracies = []
     api = api_call()
-    csvfile = open('word_values.csv','rb')
-    value_list = list(tuple(line) for line in csv.reader(csvfile,delimiter=','))
-    d = Directory('directory',api)
-            #json_fp = raw_input('Please enter the location of the json file you would like to create: ')
     json_fp = 'accuracy_test.json'
-    #d.convert_json(json_fp)
-    while i <= 50:
-        while j <= 100:
-            print (i,j)
-            a = Alignment(d.email_json,value_list,j,i)
-            a.assign_alignment()
-            write_str += '(' + str(i) + ' , ' + str(j) + ' , ' + str(accuracy(a.emails)) + ')\n'
-            acc = accuracy(a.emails)
-            print acc
-            accuracies.append(acc)
-            j += 5
-        i += 2
-        j=10
-    with open('accuracies_cutoff_2.txt','w') as f:
+    d = Directory('directory',api)
+    pickle_files = iter_pickle()
+    counter = 1.0
+    length = len(pickle_files)
+    for align,bash in pickle_files:
+        with open(align , 'rb') as align_content:
+            align_dict = sPickle.load(align_content)
+        align_list = align_dict.items()
+        with open(bash , 'rb') as bash_content:
+            bash_dict = sPickle.load(bash_content)
+        bash_list = bash_dict.items()
+        bash_list = map(lambda x: (x[0],x[1]*-1),bash_list)
+        value_list = align_list + bash_list
+        print align
+        print 'pct_done: ' + str(counter/length)
+        a = Alignment(d.email_json,value_list)
+        a.assign_alignment()
+        write_str += align + ',' + str(accuracy(a.emails)) + '\n'
+        acc = accuracy(a.emails)
+        print acc
+        accuracies.append(acc)
+        counter += 1
+    with open('accuracies_pickle_1.txt','w') as f:
         f.write(write_str)
     print 'Max: ' + str(max(accuracies))
     print 'Min: ' + str(min(accuracies))
