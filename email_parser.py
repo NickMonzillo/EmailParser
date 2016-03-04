@@ -1,10 +1,7 @@
-import email.message, email.parser, email, json, re, email.utils
+import email.message, email.parser, email, json, re, email.utils, pickle, nltk,settings
 from os import listdir
 from time import strftime
 from urllib2 import Request, urlopen
-import sPickle
-from wordExtractor2 import word_extractor
-from textblob import TextBlob
 
 class Email(object):
     def __init__(self, email_path):
@@ -77,7 +74,7 @@ class Email(object):
             if member['person']['lastname'] in self.name:
                 return pull_api_info(member)
         
-    def construct_dict(self):
+    def construct_dict(self,classifier):
         '''Constructs a dictionary of email information.'''
         self.get_header()
         self.get_body()
@@ -85,6 +82,7 @@ class Email(object):
             return False
         try:
             email_dict = self.get_info()
+            #email_dict = {'party':email_dict_temp['party'],'title_long':email_dict_temp['title_long']}
             email_dict['Subject'] = self.subject
             email_dict['Name'] = self.name
             email_dict['Address'] = self.address
@@ -92,36 +90,26 @@ class Email(object):
             email_dict['Body'] = self.body
             email_dict['Month'] = self.month
             email_dict['Year'] = self.year
-            email_dict['polarity'] = self.polarity()
+            if classifier:
+                if settings.extractor['use_extractor']:
+                    trimmed_txt = word_extractor(self.body)
+                    email_dict['assignment'] = classifier.classify(wordlist(trimmed_txt))
+                else:
+                    email_dict['assignment'] = classifier.classify(wordlist(self.body))
+            #email_dict['assignment'] = '1'
             return email_dict
         except:
             return None
-
-    def polarity(self):
-        '''Assigns a polarity to the email.
-        Higher number means that the email praises Obama.
-        Lower number means the email bashes Obama.'''
-        text = word_extractor(self.body, 'obama', 75)
-        with open("top100", 'rb') as f:
-            top100 = sPickle.load(f)
-        with open("bottom100", 'rb') as f:
-            bottom100 = sPickle.load(f)
-        score = 0
-        if text:
-            for word in text.split(" "):
-                if word in top100:
-                    score += top100[word]
-                elif word in bottom100:
-                    score -= bottom100[word]
-        if not score:
-            return 'None'
-        return score
         
 class Directory(Email):
     def __init__(self,directory):
         '''Initializes an instance of the Directory class.'''
         self.directory = directory
         self.congress = api_call()
+        if settings.classifier['use_classifier']:
+            self.classifier = load_pickle(settings.classifier['classifier_fp'])
+        else:
+            self.classifier = None
         
     def dir_list(self):
         '''Returns the list of all files in self.directory'''
@@ -136,7 +124,7 @@ class Directory(Email):
         eml_list = []
         for email in self.dir_list():
             self.path = self.directory + '/' + email
-            eml_dict = self.construct_dict()
+            eml_dict = self.construct_dict(self.classifier)
             if eml_dict:
                 eml_list.append(eml_dict)
         return eml_list
@@ -162,9 +150,30 @@ def remove_non_ascii(text):
     '''Removes any non-ascii characters from a string.'''
     return ''.join(i for i in text if ord(i)<128)
 
+def word_extractor(text, keyword=settings.extractor['keyword'], n=settings.extractor['str_length']):
+    '''Extracts n words before and after the keyword in a given text.'''
+    text = text.lower()
+    separated = text.partition(keyword)
+    if separated[2]:
+        neg = -1*n
+        before,after = separated[0].split()[neg:],separated[2].split()[:n]
+        before.extend(after)
+        return ' '.join(before)
+    else:
+        return text
+
+def wordlist(text):
+    '''Returns a list of words in the text.'''
+    words = {}
+    separated = separate(text)
+    for word in separated:
+        if word not in words.keys():
+            words[word] = 1
+    return words
+
 def api_call():
     '''Makes an api call and returns a JSOn object of information on the current US congress.'''
-    request = Request('https://www.govtrack.us/api/v2/role?current=true&limit=600')
+    request = Request('https://www.govtrack.us/api/v2/role?sort=-enddate&limit=2019')
     return json.load(urlopen(request))['objects']
 
 def pull_api_info(entry):
@@ -177,7 +186,37 @@ def pull_api_info(entry):
             else:        
                 info_dict[key] = entry[key]
         return info_dict
+
+def separate(text):
+    '''Takes text and separates it into a list of words'''
+    alphabet = 'abcdefghijklmnopqrstuvwxyz'
+    stop_list = stopwords()
+    words = text.split()
+    standardwords = []
+    for word in words:
+        if word not in stop_list:
+            newstr = ''
+            for char in word:
+                if char.lower() in alphabet:
+                   newstr += char
+            if newstr != '':
+                standardwords.append(newstr)
+    return map(lambda x: x.lower(),standardwords)
     
+def load_pickle(pickle_fp):
+    '''Loads a .pickle file and returns the object.'''
+    f = open(pickle_fp,'rb')
+    content = pickle.load(f)
+    f.close()
+    return content
+
+def stopwords(stopwords_fp=settings.stopwords_fp):
+    '''Returns a list of stopwords from the given stopwords file.'''
+    with open(stopwords_fp) as f:
+        content = f.readlines()
+    lines = [line.rstrip() for line in content]
+    return lines
+
 def main():
     '''Guides the user through the program.'''
     directory = raw_input('Please enter the path to the directory of .eml files: ')
@@ -188,4 +227,3 @@ def main():
  
 if __name__ == '__main__':
     main()
-
