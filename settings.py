@@ -6,6 +6,6 @@ extractor = dict(
 
 classifier = dict(
     use_classifier = True, #True if you want to classify emails in email_parser.py
-    classifier_fp = 'NB_classifier.pickle' #Define the path to the Naive Bayes classifier, must have .pickle extension
+    classifier_fp = 'Classifiers/NB_classifier.pickle' #Define the path to the Naive Bayes classifier, must have .pickle extension
 )
 stopwords_fp = 'stopwords.txt' #Define the path to the file containing stopwords
