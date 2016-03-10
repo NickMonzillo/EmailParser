@@ -15,7 +15,7 @@ To activate the sentiment analyzer, edit the settings.py by setting use_classifi
 
 The extractor settings in settings.py is used to extract keywords from the email bodies and perform the sentiment analysis on only the given number of words. The number of words that are extracted around the keyword is defined by str_length. If use_extractor is set to False, the entire email body is used for the training set and sentiment analysis.
 
-Analyzer.py is a script that utilizes the database created with email_parser.py in order to generate a csv file that contains information on sender's alignment wih Obama. Specifically, it contains the number of emails that the sender sent that align with or bash Barack Obama for every sender in the database. It also contains the percentage of emails that the sender sent that align with or bash Obama.
+Analyzer.py is a script that utilizes the database created with email_parser.py in order to generate a csv file that contains information on sender's sentiment tendencies. For every sender in the database, it contains the number of emails that the sender sent that are positive or negative as identified by the sentiment analyzer. It also contains the percentage of emails that are positive or negative.
 
 The Scripts folder houses some of the scripts that can be used to create datasets from the email information. You can view some examples of these datasets in the Data folder.
 
